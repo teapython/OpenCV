@@ -1,37 +1,45 @@
-## Welcome to GitHub Pages
+## Virtual Makeup - Apply Lipstick
+This is a demonstration of how to use OpenCV and Dlib to apply lipstick to a face image, also a project for my online OpenCV course: Computer Vision II. Simple but fun!
 
-You can use the [editor on GitHub](https://github.com/teapython/Orchid-Oolong/edit/master/README.md) to maintain and preview the content for your website in Markdown files.
+### The Core Idea
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
+- Detect landmarks on the face
+- Fill the upper and lower lips with the lipstick color
+- Generate a blurred lip mask 
+- Alpha blend the mask image with the lip-colored image for a more natural looking
 
-### Markdown
+### Code and Results
 
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
-
-```markdown
-Syntax highlighted code block
-
-# Header 1
-## Header 2
-### Header 3
-
-- Bulleted
-- List
-
-1. Numbered
-2. List
-
-**Bold** and _Italic_ and `Code` text
-
-[Link](url) and ![Image](src)
+#### Import libraries and set up image display parameters
+```
+import cv2,sys,dlib,time,math
+import numpy as np
+import matplotlib.pyplot as plt
+%matplotlib inline
+import matplotlib
+matplotlib.rcParams['figure.figsize'] = (8.0,8.0)
+matplotlib.rcParams['image.cmap'] = 'gray'
+matplotlib.rcParams['image.interpolation'] = 'bilinear'
 ```
 
-For more details see [GitHub Flavored Markdown](https://guides.github.com/features/mastering-markdown/).
+#### Read Image Without Makeup
+The original photo without makeup came from https://generated.photoswas and was generated completely by AI.
+```
+im = cv2.imread("AI-no-makeup.jpg")
+# Convert BGR image to RGB colorspace for a correct Matplotlib display. 
+# This is because OpenCV uses BGR format by default whereas Matplotlib assumes RGB format by default. 
+imDlib = cv2.cvtColor(im,cv2.COLOR_BGR2RGB)
+plt.imshow(imDlib)
+ax = plt.axis('off')
+```
 
-### Jekyll Themes
+#### Load landmark detector
+Load Dlib's face detector and the 68-Point face landmark model. You can download the model file from Dlib website. Note: Here I used Dlib's pre-trained models for face and face landmark detection, but you can train your own models.
+```
+# Get the face detector
+faceDetector = dlib.get_frontal_face_detector()
+# The landmark detector is implemented in the shape_predictor class
+landmarkDetector = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
+```
 
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/teapython/Orchid-Oolong/settings). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
 
-### Support or Contact
-
-Having trouble with Pages? Check out our [documentation](https://help.github.com/categories/github-pages-basics/) or [contact support](https://github.com/contact) and we’ll help you sort it out.
