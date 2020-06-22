@@ -26,10 +26,10 @@ matplotlib.rcParams['image.interpolation'] = 'bilinear'
 
 ### Read Image Without Makeup
 
-The original photo without makeup came from https://generated.photoswas and was generated completely by AI.
+The original photo without makeup came from https://generated.photos and was generated completely by AI.
 
 ```
-im = cv2.imread("AI-no-makeup.jpg")
+im = cv2.imread("AI_no_makeup.jpg")
 # Convert BGR image to RGB colorspace for a correct Matplotlib display. 
 # This is because OpenCV uses BGR format by default whereas Matplotlib assumes RGB format by default. 
 imDlib = cv2.cvtColor(im,cv2.COLOR_BGR2RGB)
@@ -106,7 +106,7 @@ def removePolygonFromMask(mask, points, pointsIndex):
 
   cv2.fillConvexPoly(mask, np.int32(hullPoints), (0, 0, 0))
 
-# Generate a Lip Mask from Lip Points
+### Generate a Lip Mask from Lip Points
 
 First we need to define some functions
 
@@ -175,4 +175,5 @@ def alphaBlend(alpha, foreground, background):
 imLipStick = alphaBlend(mask, imLipStick, imDlib)
 ```
 
+## Final Results
 Compare the two images before and after alpha blending with the blurred mask, the latter looks more natural. Of course, there are many other ways to achive more sophisticated results, but for a simple application the current method is a shortcut.
