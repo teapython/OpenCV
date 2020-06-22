@@ -5,7 +5,7 @@ This is a demonstration of how to use OpenCV and Dlib to apply earrings to a fac
 ## The Core Idea
 
 - Detect landmarks on the face
-- Scale the earring image to fit to the face
+- Scale the earring images to fit to the face
 - Estimate the earlobe locations based on landmarks
 - Using earlobe locations to find regions on the face image to be replaced with the earring images
 - Alpha blend images of these regions with the earring images
@@ -107,6 +107,7 @@ rAlpha = cv2.merge((ar,ar,ar))
 ```
 
 The earring images and their alpha masks:
+
 ![](/data/images/left_earring.png)  ![](/data/images/left_earring_alpha.jpg) ![](/data/images/right_earring.png)  ![](/data/images/right_earring_alpha.jpg)    
 
 Resize the earring image height to 0.8 * height difference between landmark point 2 and 4. Then resize the earring width using the same scale. Note: This scale is based on best fitting results for the current earring images. You may use a different scale for your own earring images.
