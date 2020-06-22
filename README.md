@@ -1,6 +1,6 @@
 # Virtual Makeup - Apply Lipstick
 
-This is a demonstration of how to use OpenCV and Dlib to apply lipstick to a face image, also a project for my online OpenCV course: Computer Vision II. Simple but fun!
+This is a demonstration of how to use OpenCV and Dlib to apply lipstick to a face image, also a project for my attended online OpenCV course: Computer Vision II. Simple but fun!
 
 ## The Core Idea
 
@@ -11,7 +11,7 @@ This is a demonstration of how to use OpenCV and Dlib to apply lipstick to a fac
 
 ## Code
 
-Import libraries and set up image display parameters
+Import libraries and set up image display parameters.
 
 ```
 import cv2, dlib
@@ -25,8 +25,6 @@ Read the original image without makeup. It was generated completely by AI from h
 ```
 im = cv2.imread("AI_no_makeup.jpg")
 # Convert BGR image to RGB colorspace for a correct Matplotlib display. 
-# This is because OpenCV uses BGR format by default 
-# whereas Matplotlib assumes RGB format by default. 
 imDlib = cv2.cvtColor(im,cv2.COLOR_BGR2RGB)
 plt.imshow(imDlib)
 ```
@@ -53,7 +51,7 @@ Next step is to detect the 68 landmarks inside the detected face rectangle.
 # To store landmark points
 points = []
 # For this simple application,
-# I choose the first detected face for landmark detection.
+# I choose the first detected face for landmark detection. 
 # Multiple detected faces situation isn't considered.
 if len(faceRects) > 0:
     newRect = dlib.rectangle(int(faceRects[0].left()),
@@ -63,8 +61,7 @@ if len(faceRects) > 0:
     # Detect landmarks
     landmarks = landmarkDetector(imDlib, newRect)
 
-    # Convert Dlib shape detector object to list of tuples
-    # and store them for the next step use.
+    # Convert Dlib shape detector object to list of tuples and store them.
     for p in landmarks.parts():
         pt = (p.x, p.y)
         points.append(pt)
@@ -83,7 +80,7 @@ There are 68 landmarks on a face, but for applying lipstick we only care about t
 imLipStick = imDlib.copy()
 # Get lip points from the 68 landmarks
 lipPoints = points[48:68]
-# Fill lip with red color.
+# Fill lip with red color
 cv2.fillPoly(imLipStick, [np.array(lipPoints)], (255, 0, 0))
 ```
 
@@ -94,7 +91,7 @@ You can see the applied lipstick using fillPoly function has rough and sharp edg
 First we need to define some functions for generating the lip mask.
 
 ```
-# Function for removing the lip gap from the lip mask
+# Function to remove the lip gap from the lip mask
 def removePolygonFromMask(mask, points, pointsIndex):
   hullPoints = []
   for pIndex in pointsIndex:
@@ -123,7 +120,7 @@ def getLipMask(size, points):
   return mask
 ```
 
-Use these functions to create the lip mask
+Use these functions to create the lip mask:
 
 ```
 mask = getLipMask(imLipStick.shape[0:2], lipPoints)
@@ -131,7 +128,7 @@ mask = getLipMask(imLipStick.shape[0:2], lipPoints)
 
 ![](/data/images/mask_before_blur.jpg)
 
-Now blur the lip mask to smooth edges for a more natural lipstick effect
+Now blur the lip mask to smooth edges for a more natural lipstick effect.
 
 ```
 maskHeight, maskWidth = mask.shape[0:2]
