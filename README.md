@@ -34,8 +34,11 @@ im = cv2.imread("AI_no_makeup.jpg")
 # This is because OpenCV uses BGR format by default whereas Matplotlib assumes RGB format by default. 
 imDlib = cv2.cvtColor(im,cv2.COLOR_BGR2RGB)
 plt.imshow(imDlib)
-ax = plt.axis('off')
 ```
+
+The original image without makeup
+
+![](/data/images/AI_no_makeup.jpg)
 
 ### Load landmark detector
 
@@ -83,6 +86,8 @@ else:
 
 The image below shows the detected 68 landmarks and their corresponding indices.
 
+![](/data/images/face_with_landmarks.jpg)
+
 ### Fill the upper and lower lips with lipstick color
 
 ```
@@ -98,18 +103,9 @@ plt.imshow(imLipStick)
 
 You can see the image applied with lipstick by fillPoly function looks not very natural. To fix this, a blurred mask is created for alpha blending.
 
-### Generate a Lip Mask from Lip Points
-def removePolygonFromMask(mask, points, pointsIndex):
-  hullPoints = []
-  for pIndex in pointsIndex:
-    hullPoints.append(points[pIndex])
-
-  cv2.fillConvexPoly(mask, np.int32(hullPoints), (0, 0, 0))
+![](/data/images/face_with_simple_lipstick.jpg)
 
 ### Generate a Lip Mask from Lip Points
-
-First we need to define some functions
-
 ```
 # Function for removing the lip gap from the lip mask
 def removePolygonFromMask(mask, points, pointsIndex):
@@ -146,6 +142,10 @@ def getLipMask(size, points):
 mask = getLipMask(imLipStick.shape[0:2], lipPoints)
 ```
 
+The generated mask has sharp edges.
+
+![](/data/images/mask_before_blur.jpg)
+
 ### Blur the lip mask to smooth edges for a more natural lipstick effect
 
 ```
@@ -155,6 +155,10 @@ maskSmall = cv2.erode(maskSmall, (-1, -1), 25)
 maskSmall = cv2.GaussianBlur(maskSmall, (51, 51), 0, 0)
 mask = cv2.resize(maskSmall, (maskWidth, maskHeight))
 ```
+
+Now the lip mask looks heavily blurred.
+
+![](/data/images/mask_after_blur.jpg)
 
 ### Alpha blend to apply lipstick
 
@@ -177,3 +181,5 @@ imLipStick = alphaBlend(mask, imLipStick, imDlib)
 
 ## Final Results
 Compare the two images before and after alpha blending with the blurred mask, the latter looks more natural. Of course, there are many other ways to achive more sophisticated results, but for a simple application the current method is a shortcut.
+
+![](/data/images/face_with_simple_lipstick.jpg) ![](/data/images/face_with_natural_lipstick.jpg)
