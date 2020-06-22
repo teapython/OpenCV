@@ -100,7 +100,7 @@ else:
 
 <p>The image below shows the detected 68 landmarks and their corresponding indices.</p>
 
-<p><img src="/OpenCV/data/images/face_with_landmarks.jpg" alt="" /></p>
+<p align="center"><img src="/OpenCV/data/images/face_with_landmarks.jpg" alt="" /></p>
 
 <p>There are 68 landmarks on a face, but for applying lipstick we only care about the lip points (48 to 67). Now fill the upper and lower lips with lipstick color you like.</p>
 
@@ -114,7 +114,7 @@ cv2.fillPoly(imLipStick, [np.array(lipPoints)], (255, 0, 0))
 
 <p>You can see the applied lipstick using fillPoly function has rough and sharp edges. To get a more natural looking, a heavily blurred lip mask is used.</p>
 
-<p><img src="/OpenCV/data/images/face_with_simple_lipstick.jpg" alt="" /></p>
+<p align="center"><img src="/OpenCV/data/images/face_with_simple_lipstick.jpg" alt="" /></p>
 
 <p>First we need to define some functions for generating the lip mask.</p>
 
@@ -152,7 +152,7 @@ def getLipMask(size, points):
 <div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>mask = getLipMask(imLipStick.shape[0:2], lipPoints)
 </code></pre></div></div>
 
-<p><img src="/OpenCV/data/images/mask_before_blur.jpg" alt="" /></p>
+<p align="center"><img src="/OpenCV/data/images/mask_before_blur.jpg" alt="" /></p>
 
 <p>Now blur the lip mask to smooth edges for a more natural lipstick effect.</p>
 
@@ -165,7 +165,7 @@ mask = cv2.resize(maskSmall, (maskWidth, maskHeight))
 
 <p>The lip mask looks heavily blurred.</p>
 
-<p><img src="/OpenCV/data/images/mask_after_blur.jpg" alt="" /></p>
+<p align="center"><img src="/OpenCV/data/images/mask_after_blur.jpg" alt="" /></p>
 
 <p>Next step is to use the blurred mask to alpha blend the original image with the lipstick applied image.</p>
 
@@ -188,7 +188,7 @@ imLipStick = alphaBlend(mask, imLipStick, imDlib)
 <h2 id="final-results">Final Results</h2>
 <p>Compare the two images before and after alpha blending with the blurred mask, the latter looks more natural. Of course, there are many ways to achive more sophisticated results, but for a simple application like this the current method is a shortcut.</p>
 
-<p><img src="/OpenCV/data/images/face_with_simple_lipstick.jpg" alt="" /> <img src="/OpenCV/data/images/face_with_natural_lipstick.jpg" alt="" /></p>
+<p><img src="/OpenCV/data/images/face_with_simple_lipstick.jpg" alt=""  width="100" /> <img src="/OpenCV/data/images/face_with_natural_lipstick.jpg" alt=""  width="100" /></p>
 
 
       <footer class="site-footer">
