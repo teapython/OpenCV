@@ -1,13 +1,15 @@
-# Virtual Makeup - Apply Lipstick
+# Virtual Makeup - Apply Earrings
 
-This is a demonstration of how to use OpenCV and Dlib to apply lipstick to a face image, also a project for my attended online OpenCV course: Computer Vision II. Simple but fun!
+This is a demonstration of how to use OpenCV and Dlib to apply earrings to a face image, also a project for the OpenCV course: Computer Vision II. For those who love earrings!
 
 ## The Core Idea
 
 - Detect landmarks on the face
-- Fill the upper and lower lips with the lipstick color
-- Generate a blurred lip mask
-- Alpha blend the mask with the lip-colored image for a more natural looking
+- Scale the earring image to fit to the face
+- Estimate the earlobe locations based on landmarks
+- Using earlobe locations to find regions on the face image to be replaced with the earring images
+- Alpha blend images from cutting these region with the earring images
+- Replace regions on the face images with the alpha-blended images
 
 ## Code
 
@@ -73,95 +75,89 @@ The image below shows the detected 68 landmarks and their corresponding indices.
 
 ![](/data/images/face_with_landmarks.jpg)
 
-There are 68 landmarks on a face, but for applying lipstick we only care about the lip points (48 to 67). Now fill the upper and lower lips with lipstick color you like. 
+I use the following equation to find the approximate locations of the left and right earlobe centres. This is just a rough calculation for this simple application, you can develop more accurate algorithms.
+
+## Left: (x coordinate of landmark point 0, y coordinate of the middle point between point 2 and 3)
+## Right: (x coordinate of landmark point 16, y coordinate of the middle point between point 13 and 14)
+
+```
+leftLobeCentre = (points[0][0], int(points[2][1]+(points[3][1]-points[2][1])/2))
+rightLobeCentre = (points[16][0], int(points[13][1]+(points[14][1]-points[13][1])/2))
+```
+
+Now read the left and right earring images. Note they are PNG images which contain R, G, B channels as well as a transparent alpha channel. 
+
+```
+# Read the left earring image with alpha channel
+lEaringIm = cv2.imread("left_earring.png", -1)
+# Split png left earring image
+bl,gl,rl,al = cv2.split(lEaringIm)
+# Merge and convert into an RGB image
+lEaringIm = cv2.merge((bl,gl,rl))
+lEaringIm = cv2.cvtColor(lEaringIm, cv2.COLOR_BGR2RGB)
+# Save the alpha information into a single Mat
+lAlpha = cv2.merge((al,al,al))
+
+# Repeat the previous steps for the right earring PNG image
+rEaringIm = cv2.imread("right_earring.png", -1)
+br,gr,rr,ar = cv2.split(rEaringIm)
+rEaringIm = cv2.merge((br,gr,rr))
+rEaringIm = cv2.cvtColor(rEaringIm, cv2.COLOR_BGR2RGB)
+rAlpha = cv2.merge((ar,ar,ar))
+```
+
+
+Resize the earring image height to 0.8 * height difference between landmark point 2 and 4. Then resize the earring width using the same scale. Note: This scale is based on best fitting results for the current earring images. You may use a different scale for your own earring images.
+
+```
+h = int((points[4][1] - points[2][1])*0.8)
+w = int(lEaringIm.shape[1]*h/lEaringIm.shape[0])
+lEaringImResized = cv2.resize(lEaringIm, (w, h))
+rEaringImResized = cv2.resize(rEaringIm, (w, h))
+
+lAlphaResized = cv2.resize(lAlpha, (w, h))
+rAlphaResized = cv2.resize(rAlpha, (w, h))
+```
+
+Find two rectangle regions of the exact size as the scaled earring images on the face image. The previously calculated earlobe centre points are used as the top middle points of the regions.
 
 ```
 # Make a copy of the original image
-imLipStick = imDlib.copy()
-# Get lip points from the 68 landmarks
-lipPoints = points[48:68]
-# Fill lip with red color
-cv2.fillPoly(imLipStick, [np.array(lipPoints)], (255, 0, 0))
+imEarrings = imDlib.copy()
+
+lReg = imEarrings[points[2][1]:points[2][1]+h, int(points[0][0]-w/2):int(points[0][0]-w/2)+w]
+rReg = imEarrings[points[14][1]:points[14][1]+h, int(points[16][0]-w/2):int(points[16][0]-w/2)+w]
 ```
 
-You can see the applied lipstick using fillPoly function has rough and sharp edges. To get a more natural looking, a heavily blurred lip mask is used.
-
-![](/data/images/face_with_simple_lipstick.jpg)
-
-First we need to define some functions for generating the lip mask.
+Perform alpha blending to the left and right earring regions. For more detailed information about Alpha Blending go to https://www.learnopencv.com/alpha-blending-using-opencv-cpp-python/.
 
 ```
-# Function to remove the lip gap from the lip mask
-def removePolygonFromMask(mask, points, pointsIndex):
-  hullPoints = []
-  for pIndex in pointsIndex:
-    hullPoints.append(points[pIndex])
-  cv2.fillConvexPoly(mask, np.int32(hullPoints), (0, 0, 0))
+# Convert uint8 to float and then normalize the alpha mask to keep intensity between 0 and 1
+lEaringImResized = lEaringImResized.astype(float)
+lReg = lReg.astype(float)
+lAlphaResized = lAlphaResized.astype(float)/255
 
-# Function to generate the lip mask
-def getLipMask(size, points):
-  # Find Convex hull of all points
-  hullIndex = cv2.convexHull(np.array(points), returnPoints=False)
+rEaringImResized = rEaringImResized.astype(float)
+rReg = rReg.astype(float)
+rAlphaResized = rAlphaResized.astype(float)/255
 
-  # Convert hull index to list of points
-  hullInt = []
-  for hIndex in hullIndex:
-    hullInt.append(points[hIndex[0]])
-
-  # Create mask such that convex hull is white
-  # Note this mask also includes the lip gap 
-  # which will be removed
-  mask = np.zeros((size[0], size[1], 3), dtype=np.uint8)
-  cv2.fillConvexPoly(mask, np.int32(hullInt), (255, 255, 255))
-
-  # Remove lip gap from the mask
-  removePolygonFromMask(mask, points, lipGap)
-
-  return mask
-```
-
-Use these functions to create the lip mask:
-
-```
-mask = getLipMask(imLipStick.shape[0:2], lipPoints)
-```
-
-![](/data/images/mask_before_blur.jpg)
-
-Now blur the lip mask to smooth edges for a more natural lipstick effect.
-
-```
-maskHeight, maskWidth = mask.shape[0:2]
-maskSmall = cv2.resize(mask, (256, int(maskHeight*256.0/maskWidth)))
-maskSmall = cv2.erode(maskSmall, (-1, -1), 25)
-maskSmall = cv2.GaussianBlur(maskSmall, (51, 51), 0, 0)
-mask = cv2.resize(maskSmall, (maskWidth, maskHeight))
-```
-
-The lip mask looks heavily blurred.
-
-![](/data/images/mask_after_blur.jpg)
-
-Next step is to use the blurred mask to alpha blend the original image with the lipstick applied image.
-
-```
-# Define the function for alpha blending
-def alphaBlend(alpha, foreground, background):
-  fore = np.zeros(foreground.shape, dtype=foreground.dtype)
-  fore = cv2.multiply(alpha, foreground, fore, 1/255.0)
-
-  alphaPrime = np.ones(alpha.shape, dtype=alpha.dtype)*255 - alpha
-  back = np.zeros(background.shape, dtype=background.dtype)
-  back = cv2.multiply(alphaPrime, background, back, 1/255.0)
-
-  outImage = cv2.add(fore, back)
-  return outImage
- 
 # Perform alpha blending
-imLipStick = alphaBlend(mask, imLipStick, imDlib)
+lForeground = cv2.multiply(lAlphaResized, lEaringImResized)
+lBackground = cv2.multiply(1.0 - lAlphaResized, lReg)
+lOutImage = cv2.add(lForeground, lBackground)
+
+rForeground = cv2.multiply(rAlphaResized, rEaringImResized)
+rBackground = cv2.multiply(1.0 - rAlphaResized, rReg)
+rOutImage = cv2.add(rForeground, rBackground)
+```
+
+Final step is to replace the earring regions on the original image with the alpha blended images.
+
+```
+imEarrings[points[2][1]:points[2][1]+h, int(points[0][0]-w/2):int(points[0][0]-w/2)+w] = lOutImage
+imEarrings[points[14][1]:points[14][1]+h, int(points[16][0]-w/2):int(points[16][0]-w/2)+w] = rOutImage
 ```
 
 ## Final Results
-Compare the two images before and after alpha blending with the blurred mask, the latter looks more natural. Of course, there are many ways to achive more sophisticated results, but for a simple application like this the current method is a shortcut.
 
-![](/data/images/face_with_simple_lipstick.jpg) ![](/data/images/face_with_natural_lipstick.jpg)
+![](/data/images/face_with_landmarks.jpg)   ![](/data/images/face_with_landmarks.jpg)
