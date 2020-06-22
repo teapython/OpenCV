@@ -53,14 +53,14 @@ import matplotlib.pyplot as plt
 %matplotlib inline
 </code></pre></div></div>
 
-<p>Read the original image without makeup. It was generated completely by AI from https://generated.photos.</p>
+<p>Read the original image without makeup. It was generated completely by AI from <a href="https://generated.photos">https://generated.photos</a>.</p>
 
 <div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>im = cv2.imread("AI_no_makeup.jpg")
 # Convert BGR image to RGB colorspace for a correct Matplotlib display. 
 imDlib = cv2.cvtColor(im,cv2.COLOR_BGR2RGB)
 plt.imshow(imDlib)
 </code></pre></div></div>
-<p><img src="/OpenCV/data/images/AI_no_makeup.jpg" alt="" /></p>
+<p><img src="/OpenCV/data/images/AI_no_makeup.jpg" alt="" class="center"/></p>
 
 <p>Load Dlib’s face detector and the pre-trained 68-Point face landmark model. You can download the model file from Dlib website.</p>
 
