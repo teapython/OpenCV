@@ -77,8 +77,8 @@ The image below shows the detected 68 landmarks and their corresponding indices.
 
 I use the following equation to find the approximate locations of the left and right earlobe centres. This is just a rough calculation for this simple application, you can develop more accurate algorithms.
 
-## Left: (x coordinate of landmark point 0, y coordinate of the middle point between point 2 and 3)
-## Right: (x coordinate of landmark point 16, y coordinate of the middle point between point 13 and 14)
+### Left: (x coordinate of landmark point 0, y coordinate of the middle point between point 2 and 3)
+### Right: (x coordinate of landmark point 16, y coordinate of the middle point between point 13 and 14)
 
 ```
 leftLobeCentre = (points[0][0], int(points[2][1]+(points[3][1]-points[2][1])/2))
@@ -106,6 +106,7 @@ rEaringIm = cv2.cvtColor(rEaringIm, cv2.COLOR_BGR2RGB)
 rAlpha = cv2.merge((ar,ar,ar))
 ```
 
+![](/data/images/left_earring.png)  ![](/data/images/left_earring.png)    
 
 Resize the earring image height to 0.8 * height difference between landmark point 2 and 4. Then resize the earring width using the same scale. Note: This scale is based on best fitting results for the current earring images. You may use a different scale for your own earring images.
 
@@ -160,4 +161,4 @@ imEarrings[points[14][1]:points[14][1]+h, int(points[16][0]-w/2):int(points[16][
 
 ## Final Results
 
-![](/data/images/face_with_landmarks.jpg)   ![](/data/images/face_with_landmarks.jpg)
+![](/data/images/face_with_earrings.jpg)
