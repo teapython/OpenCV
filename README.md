@@ -8,8 +8,8 @@ This is a demonstration of how to use OpenCV and Dlib to apply earrings to a fac
 - Scale the earring image to fit to the face
 - Estimate the earlobe locations based on landmarks
 - Using earlobe locations to find regions on the face image to be replaced with the earring images
-- Alpha blend images from cutting these region with the earring images
-- Replace regions on the face images with the alpha-blended images
+- Alpha blend images of these regions with the earring images
+- Replace regions in the face image with the alpha-blended images
 
 ## Code
 
@@ -77,25 +77,25 @@ The image below shows the detected 68 landmarks and their corresponding indices.
 
 I use the following equation to find the approximate locations of the left and right earlobe centres. This is just a rough calculation for this simple application, you can develop more accurate algorithms.
 
-### Left: (x coordinate of landmark point 0, y coordinate of the middle point between point 2 and 3)
-### Right: (x coordinate of landmark point 16, y coordinate of the middle point between point 13 and 14)
+- Left: (x coordinate of landmark point 0, y coordinate of the middle point between point 2 and 3)
+- Right: (x coordinate of landmark point 16, y coordinate of the middle point between point 13 and 14)
 
 ```
 leftLobeCentre = (points[0][0], int(points[2][1]+(points[3][1]-points[2][1])/2))
 rightLobeCentre = (points[16][0], int(points[13][1]+(points[14][1]-points[13][1])/2))
 ```
 
-Now read the left and right earring images. Note they are PNG images which contain R, G, B channels as well as a transparent alpha channel. 
+Now read the left and right earring images. Note they are PNG images which contain R, G, B channels, as well as a 4th channel which is a transparent alpha mask. 
 
 ```
 # Read the left earring image with alpha channel
 lEaringIm = cv2.imread("left_earring.png", -1)
 # Split png left earring image
 bl,gl,rl,al = cv2.split(lEaringIm)
-# Merge and convert into an RGB image
+# Merge and convert RGB channels into an RGB image
 lEaringIm = cv2.merge((bl,gl,rl))
 lEaringIm = cv2.cvtColor(lEaringIm, cv2.COLOR_BGR2RGB)
-# Save the alpha information into a single Mat
+# Save the alpha information into a single mask image
 lAlpha = cv2.merge((al,al,al))
 
 # Repeat the previous steps for the right earring PNG image
@@ -106,7 +106,8 @@ rEaringIm = cv2.cvtColor(rEaringIm, cv2.COLOR_BGR2RGB)
 rAlpha = cv2.merge((ar,ar,ar))
 ```
 
-![](/data/images/left_earring.png)  ![](/data/images/left_earring.png)    
+The earring images and their alpha masks:
+![](/data/images/left_earring.png)  ![](/data/images/left_earring_alpha.jpg) ![](/data/images/right_earring.png)  ![](/data/images/right_earring_alpha.jpg)    
 
 Resize the earring image height to 0.8 * height difference between landmark point 2 and 4. Then resize the earring width using the same scale. Note: This scale is based on best fitting results for the current earring images. You may use a different scale for your own earring images.
 
@@ -120,7 +121,7 @@ lAlphaResized = cv2.resize(lAlpha, (w, h))
 rAlphaResized = cv2.resize(rAlpha, (w, h))
 ```
 
-Find two rectangle regions of the exact size as the scaled earring images on the face image. The previously calculated earlobe centre points are used as the top middle points of the regions.
+Find two rectangle regions of the exact size as the scaled earring images on the face image. The previously calculated earlobe centres are used as the top middle points of the regions.
 
 ```
 # Make a copy of the original image
@@ -130,7 +131,7 @@ lReg = imEarrings[points[2][1]:points[2][1]+h, int(points[0][0]-w/2):int(points[
 rReg = imEarrings[points[14][1]:points[14][1]+h, int(points[16][0]-w/2):int(points[16][0]-w/2)+w]
 ```
 
-Perform alpha blending to the left and right earring regions. For more detailed information about Alpha Blending go to https://www.learnopencv.com/alpha-blending-using-opencv-cpp-python/.
+Perform alpha blending for the left and right earring regions. For more detailed information about Alpha Blending, go to https://www.learnopencv.com/alpha-blending-using-opencv-cpp-python/.
 
 ```
 # Convert uint8 to float and then normalize the alpha mask to keep intensity between 0 and 1
@@ -152,7 +153,7 @@ rBackground = cv2.multiply(1.0 - rAlphaResized, rReg)
 rOutImage = cv2.add(rForeground, rBackground)
 ```
 
-Final step is to replace the earring regions on the original image with the alpha blended images.
+Final step is to replace the earring regions in the original image with the alpha blended images.
 
 ```
 imEarrings[points[2][1]:points[2][1]+h, int(points[0][0]-w/2):int(points[0][0]-w/2)+w] = lOutImage
