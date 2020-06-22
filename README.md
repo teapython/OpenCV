@@ -7,65 +7,54 @@ This is a demonstration of how to use OpenCV and Dlib to apply lipstick to a fac
 - Detect landmarks on the face
 - Fill the upper and lower lips with the lipstick color
 - Generate a blurred lip mask
-- Alpha blend the mask image with the lip-colored image for a more natural looking
+- Alpha blend the mask with the lip-colored image for a more natural looking
 
 ## Code
 
-### Import libraries and set up image display parameters
+Import libraries and set up image display parameters
 
 ```
-import cv2,sys,dlib,time,math
+import cv2, dlib
 import numpy as np
 import matplotlib.pyplot as plt
 %matplotlib inline
-import matplotlib
-matplotlib.rcParams['figure.figsize'] = (8.0,8.0)
-matplotlib.rcParams['image.cmap'] = 'gray'
-matplotlib.rcParams['image.interpolation'] = 'bilinear'
 ```
 
-### Read Image Without Makeup
-
-The original photo without makeup came from https://generated.photos and was generated completely by AI.
+Read the original image without makeup. It was generated completely by AI from https://generated.photos.
 
 ```
 im = cv2.imread("AI_no_makeup.jpg")
 # Convert BGR image to RGB colorspace for a correct Matplotlib display. 
-# This is because OpenCV uses BGR format by default whereas Matplotlib assumes RGB format by default. 
+# This is because OpenCV uses BGR format by default 
+# whereas Matplotlib assumes RGB format by default. 
 imDlib = cv2.cvtColor(im,cv2.COLOR_BGR2RGB)
 plt.imshow(imDlib)
 ```
-
-The original image without makeup
-
 ![](/data/images/AI_no_makeup.jpg)
-
-### Load landmark detector
 
 Load Dlib’s face detector and the pre-trained 68-Point face landmark model. You can download the model file from Dlib website.
 
 ```
-# Get the face detector
+# Initiate the face detector instance
 faceDetector = dlib.get_frontal_face_detector()
 # The landmark detector is implemented in the shape_predictor class
 landmarkDetector = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
 ```
 
-### Detect faces in the image
+Detect faces in the image. The output of the Dlib face detector is a rectangle (x, y, w, h) that contains the face. 
 
 ```
 faceRects = faceDetector(imDlib, 0)
-
 ```
 
-### Detect landmarks
+Next step is to detect the 68 landmarks inside the detected face rectangle. 
 
 ```
 # To store landmark points
 points = []
 # For this simple application,
-# choose the first detected face for landmark detection.
-# Multiple detected faces situation not included.
+# I choose the first detected face for landmark detection.
+# Multiple detected faces situation isn't considered.
 if len(faceRects) > 0:
     newRect = dlib.rectangle(int(faceRects[0].left()),
                              int(faceRects[0].top()),
@@ -75,11 +64,10 @@ if len(faceRects) > 0:
     landmarks = landmarkDetector(imDlib, newRect)
 
     # Convert Dlib shape detector object to list of tuples
-    # and store them for 
+    # and store them for the next step use.
     for p in landmarks.parts():
         pt = (p.x, p.y)
         points.append(pt)
-    print(points)
 else:
     print('No face detected')
 ```
@@ -88,24 +76,23 @@ The image below shows the detected 68 landmarks and their corresponding indices.
 
 ![](/data/images/face_with_landmarks.jpg)
 
-### Fill the upper and lower lips with lipstick color
+There are 68 landmarks on a face, but for applying lipstick we only care about the lip points (48 to 67). Now fill the upper and lower lips with lipstick color you like. 
 
 ```
 # Make a copy of the original image
 imLipStick = imDlib.copy()
 # Get lip points from the 68 landmarks
 lipPoints = points[48:68]
-# Fill lip with red color. You can use any lipstick color you like.
+# Fill lip with red color.
 cv2.fillPoly(imLipStick, [np.array(lipPoints)], (255, 0, 0))
-plt.figure(figsize=(20,20))
-plt.imshow(imLipStick)
 ```
 
-You can see the image applied with lipstick by fillPoly function looks not very natural. To fix this, a blurred mask is created for alpha blending.
+You can see the applied lipstick using fillPoly function has rough and sharp edges. To get a more natural looking, a heavily blurred lip mask is used.
 
 ![](/data/images/face_with_simple_lipstick.jpg)
 
-### Generate a Lip Mask from Lip Points
+First we need to define some functions for generating the lip mask.
+
 ```
 # Function for removing the lip gap from the lip mask
 def removePolygonFromMask(mask, points, pointsIndex):
@@ -116,11 +103,6 @@ def removePolygonFromMask(mask, points, pointsIndex):
 
 # Function to generate the lip mask
 def getLipMask(size, points):
-  # Lip Gap polygon
-  # Note the indices are for the lip points array.
-  # Don't get them confused with the 68 landmark array indices.
-  lipGap = [12, 13, 14, 15, 16, 17, 18, 19]
-
   # Find Convex hull of all points
   hullIndex = cv2.convexHull(np.array(points), returnPoints=False)
 
@@ -130,6 +112,8 @@ def getLipMask(size, points):
     hullInt.append(points[hIndex[0]])
 
   # Create mask such that convex hull is white
+  # Note this mask also includes the lip gap 
+  # which will be removed
   mask = np.zeros((size[0], size[1], 3), dtype=np.uint8)
   cv2.fillConvexPoly(mask, np.int32(hullInt), (255, 255, 255))
 
@@ -137,16 +121,17 @@ def getLipMask(size, points):
   removePolygonFromMask(mask, points, lipGap)
 
   return mask
+```
 
-# Run the above functions to create the lip mask
+Use these functions to create the lip mask
+
+```
 mask = getLipMask(imLipStick.shape[0:2], lipPoints)
 ```
 
-The generated mask has sharp edges.
-
 ![](/data/images/mask_before_blur.jpg)
 
-### Blur the lip mask to smooth edges for a more natural lipstick effect
+Now blur the lip mask to smooth edges for a more natural lipstick effect
 
 ```
 maskHeight, maskWidth = mask.shape[0:2]
@@ -156,11 +141,11 @@ maskSmall = cv2.GaussianBlur(maskSmall, (51, 51), 0, 0)
 mask = cv2.resize(maskSmall, (maskWidth, maskHeight))
 ```
 
-Now the lip mask looks heavily blurred.
+The lip mask looks heavily blurred.
 
 ![](/data/images/mask_after_blur.jpg)
 
-### Alpha blend to apply lipstick
+Next step is to use the blurred mask to alpha blend the original image with the lipstick applied image.
 
 ```
 # Define the function for alpha blending
@@ -180,6 +165,6 @@ imLipStick = alphaBlend(mask, imLipStick, imDlib)
 ```
 
 ## Final Results
-Compare the two images before and after alpha blending with the blurred mask, the latter looks more natural. Of course, there are many other ways to achive more sophisticated results, but for a simple application the current method is a shortcut.
+Compare the two images before and after alpha blending with the blurred mask, the latter looks more natural. Of course, there are many ways to achive more sophisticated results, but for a simple application like this the current method is a shortcut.
 
 ![](/data/images/face_with_simple_lipstick.jpg) ![](/data/images/face_with_natural_lipstick.jpg)
