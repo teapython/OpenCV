@@ -179,4 +179,5 @@ celeb_name = labelMap[index[argmin]]
 
 ## Final Results
 
-![](/data/images/shashikant-pedwal.jpg)  ![](/data/images/sofia-solares.jpg) ![](/data/images/alike1.JPEG)  ![](/data/images/alike2.JPEG)    
+![Shashikant Pedwal](/data/images/shashikant-pedwal.jpg#center)
+![](/data/images/sofia-solares.jpg) ![](/data/images/alike1.JPEG)  ![](/data/images/alike2.JPEG)    
