@@ -2,14 +2,12 @@
 
 This is a demonstration of using deep learning based face recognition to find a doppelganger or look-alike celebrity to a given person, also one of my projects for the OpenCV course: **Computer Vision II**. 
 
-You will see The first person is Sofia Solares who looks like the American Singer Selena Gomez and the second one is Shashikant Pedwal who looks like Indian Film Actor Amitabh Bachchan.
-
 ## The Core Idea
 
-- Enrollment of celebrity images in Dlib’s pre-trained Face Recognizer neural network:
+- Enrollment of celebrity images in Dlib’s pre-trained Face Recognizer neural network
     * Process each celebrity image to detect faces and face landmarks
-    * Compute face descriptor for each image using the neural network and face landmarks
-- Process a given image of a person in the same way to compute face descriptor 
+    * Compute face descriptor for each image
+- Process a given person' image in the same way to compute face descriptor 
 - Calculate Euclidean distance between face descriptor of the person versus face descriptors of celebrity images. Find the celebrity face for which distance is minimum as the look-alike face.
 
 ## Code
@@ -36,6 +34,7 @@ A mini celebrity dataset from OpenCV is used for this project. It's ~400MB in si
 
 The **celeb_mini** dataset folder has the following structure:
 
+```
 celeb_mini
 └───n00000001
 │   └──n00000001_00000263.JPEG
@@ -46,9 +45,11 @@ celeb_mini
 │   └──n00000003_00000488.JPEG
 │       ...
 │
+```
 
 A dictionary **labelMap** contains the mapping between the subfolder names and the celebrity's actual name as show below:
 
+```
 {'n00000001': 'A.J. Buckley',
  'n00000002': 'A.R. Rahman',
  'n00000003': 'Aamir Khan',
@@ -60,6 +61,7 @@ A dictionary **labelMap** contains the mapping between the subfolder names and t
  .
  .
 }
+```
 
 Now prepare the dataset images for enrollment in the Dlib's neural network.
 
@@ -86,12 +88,14 @@ for subfolder in subfolders:
 
 The dictionary **nameLabelMap** looks like this:
 
+```
 {'celeb_mini/n00001021/n00001021_00000223.JPEG': 'n00001021', 
  'celeb_mini/n00001021/n00001021_00000242.JPEG': 'n00001021',
  .
  .
  .
 }
+```
 
 Process images one by one through face detection and face landmark detection. Then compute face descriptors through the Dlib's neural network. Note this step may take a while depending on your system.
 
@@ -137,6 +141,7 @@ for imagePath in imagePaths:
 
 The dictionary **index** looks like this:
 
+```
 {0: 'n00001021', 
  1: 'n00001021', 
  2: 'n00001021', 
@@ -144,14 +149,17 @@ The dictionary **index** looks like this:
  .
  .
 }
+```
 
-Now we can use minimum distance rule to find the closest celeb in the celeb dataset to a given person's image. We use images of Sofia Solares and Shashikant Pedwal as examples.
+Now we can use minimum distance rule to find the closest celeb in the celeb dataset to a given person's image. We use images of **Sofia Solares** and **Shashikant Pedwal** as examples.
 
-The example images processing steps, including face detection, face landmark detection, and face descriptor computation, are the same as the previous enrollment so not repeated here. But note there's only one output faceDescriptorNdarray instead of a stacked array for each example image, because we only consider the situation of single face per image.
+The example images processing steps, including face detection, face landmark detection, and face descriptor computation, are the same as the previous enrollment so not repeated here. But note there's only one output **faceDescriptorNdarray** instead of a stacked array for each example image, because we only consider the situation of single face per image.
 
 ```
-... # Same code as previous enrollment steps except for reading example images
-faceDescriptorNdarray = faceDescriptorNdarray[np.newaxis, :] # faceDescriptorNdarray here is for the example image
+# Same code as previous enrollment steps except for reading example images
+... 
+# faceDescriptorNdarray here is for the example image
+faceDescriptorNdarray = faceDescriptorNdarray[np.newaxis, :] 
         
 # Calculate Euclidean distances between face descriptor calculated on face dectected
 # in the example image with all the face descriptors we calculated while enrolling faces
@@ -172,4 +180,4 @@ celeb_name = labelMap[index[argmin]]
 
 ## Final Results
 
-![](/data/images/left_earring.png)  ![](/data/images/left_earring_alpha.jpg) ![](/data/images/right_earring.png)  ![](/data/images/right_earring_alpha.jpg)    
+![](/data/images/shashikant-pedwal.jpg)  ![](/data/images/sofia-solares.jpg) ![](/data/images/alike1.JPEG)  ![](/data/images/alike2.JPEG)    
