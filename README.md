@@ -8,7 +8,7 @@ This is a demonstration of using deep learning based face recognition to find a 
     * Process each celebrity image to detect faces and face landmarks
     * Compute face descriptor for each image
 - Process a given person' image in the same way to compute face descriptor 
-- Calculate Euclidean distance between face descriptor of the person versus face descriptors of celebrity images. Find the celebrity face for which distance is minimum as the look-alike face.
+- Calculate Euclidean distance between face descriptor of the person versus face descriptors of celebrity images. Find the celebrity face for which distance is minimum as the look-alike face
 
 ## Code
 
@@ -133,8 +133,8 @@ for imagePath in imagePaths:
         else:
             faceDescriptors = np.concatenate((faceDescriptors, faceDescriptorNdarray), axis=0)
         
-        # Save subfolder names containing this face image in index. We will use it later to identify
-        # person name corresponding to face descriptors stored in NumPy Array
+        # Save subfolder names containing this face image in index
+        # Later it will be used to identify person name corresponding to face descriptors
         index[i] = nameLabelMap[imagePath]
         i += 1
 ```
@@ -169,11 +169,10 @@ distances = np.linalg.norm(faceDescriptorsEnrolled - faceDescriptorNdarray, axis
 # Calculate minimum distance and index of this face
 argmin = np.argmin(distances)  # index
 minDistance = distances[argmin]  # minimum distance
-        
+
+# The face with the minimum distance is the celeb look-alike face
 # Find the full path of the image in nameLabelMap
 imagePath = list(nameLabelMap.keys())[list(nameLabelMap.values()).index(index[argmin])]  
-    
-# The face with the minimum distance is the celeb look-alike face
 # Find the name of person from dictionary labelMap based on index 
 celeb_name = labelMap[index[argmin]]
 ```
