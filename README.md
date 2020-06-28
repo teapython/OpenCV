@@ -1,15 +1,16 @@
-# Virtual Makeup - Apply Earrings
+# DoppelGanger - Find Celebrity Look-Alike
 
-This is a demonstration of how to use OpenCV and Dlib to apply earrings to a face image, also a project for the OpenCV course: Computer Vision II. For those who love earrings!
+This is a demonstration of using deep learning based face recognition to find a doppelganger or look-alike celebrity to a given person, also one of my projects for the OpenCV course: **Computer Vision II**. 
+
+You will see The first person is Sofia Solares who looks like the American Singer Selena Gomez and the second one is Shashikant Pedwal who looks like Indian Film Actor Amitabh Bachchan.
 
 ## The Core Idea
 
-- Detect landmarks on the face
-- Scale the earring images to fit to the face
-- Estimate the earlobe locations based on landmarks
-- Using earlobe locations to find regions on the face image to be replaced with the earring images
-- Alpha blend images of these regions with the earring images
-- Replace regions in the face image with the alpha-blended images
+- Enrollment of celebrity images in Dlib’s pre-trained Face Recognizer neural network:
+    * Process each celebrity image to detect faces and face landmarks
+    * Compute face descriptor for each image using the neural network and face landmarks
+- Process a given image of a person in the same way to compute face descriptor 
+- Calculate Euclidean distance between face descriptor of the person versus face descriptors of celebrity images. Find the celebrity face for which distance is minimum as the look-alike face.
 
 ## Code
 
@@ -22,145 +23,153 @@ import matplotlib.pyplot as plt
 %matplotlib inline
 ```
 
-Read the original image without makeup. It was generated completely by AI from https://generated.photos.
+Initialize Dlib’s Face Detector, Facial Landmark Detector and Face Recognition neural network objects. 
+All the models can be found through this blog post of Davis King, the author of Dlib.
 
 ```
-im = cv2.imread("AI_no_makeup.jpg")
-# Convert BGR image to RGB colorspace for a correct Matplotlib display. 
-imDlib = cv2.cvtColor(im,cv2.COLOR_BGR2RGB)
-plt.imshow(imDlib)
-```
-![](/data/images/AI_no_makeup.jpg)
-
-Load Dlib’s face detector and the pre-trained 68-Point face landmark model. You can download the model file from Dlib website.
-
-```
-# Initiate the face detector instance
 faceDetector = dlib.get_frontal_face_detector()
-# The landmark detector is implemented in the shape_predictor class
-landmarkDetector = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
+shapePredictor = dlib.shape_predictor('shape_predictor_68_face_landmarks.dat')
+faceRecognizer = dlib.face_recognition_model_v1('dlib_face_recognition_resnet_model_v1.dat')
 ```
 
-Detect faces in the image. The output of the Dlib face detector is a rectangle (x, y, w, h) that contains the face. 
+A mini celebrity dataset from OpenCV is used for this project. It's ~400MB in size, including 5 images per person for ~1100 celebs. You can use any other large datasets if you have enough computation resources. 
+
+The **celeb_mini** dataset folder has the following structure:
+
+celeb_mini
+└───n00000001
+│   └──n00000001_00000263.JPEG
+│   └──n00000001_00000405.JPEG
+│      ...
+└───n00000003
+│   └──n00000003_00000386.JPEG
+│   └──n00000003_00000488.JPEG
+│       ...
+│
+
+A dictionary **labelMap** contains the mapping between the subfolder names and the celebrity's actual name as show below:
+
+{'n00000001': 'A.J. Buckley',
+ 'n00000002': 'A.R. Rahman',
+ 'n00000003': 'Aamir Khan',
+ 'n00000004': 'Aaron Staton',
+ 'n00000005': 'Aaron Tveit',
+ 'n00000006': 'Aaron Yoo',
+ 'n00000007': 'Abbie Cornish',
+ .
+ .
+ .
+}
+
+Now prepare the dataset images for enrollment in the Dlib's neural network.
 
 ```
-faceRects = faceDetector(imDlib, 0)
+# imagePaths is a list of full paths for all celeb images  
+# nameLabelMap is a dictionary with keys as image file full paths
+# and values as subfolder names containing these images for a celebrity
+
+nameLabelMap = {}
+imagePaths = []
+
+subfolders = os.listdir(faceDatasetFolder)
+
+for subfolder in subfolders:
+    xpath = os.path.join(faceDatasetFolder, subfolder)
+    if os.path.isdir(xpath):
+        for x in os.listdir(xpath):
+            fullPath = os.path.join(xpath, x)
+            # Change 'JPEG' to the real format of your images
+            if x.endswith('JPEG'):
+                imagePaths.append(fullPath)
+                nameLabelMap[fullPath] = subfolder.split('/')[-1]
 ```
 
-Next step is to detect the 68 landmarks inside the detected face rectangle. 
+The dictionary **nameLabelMap** looks like this:
+
+{'celeb_mini/n00001021/n00001021_00000223.JPEG': 'n00001021', 
+ 'celeb_mini/n00001021/n00001021_00000242.JPEG': 'n00001021',
+ .
+ .
+ .
+}
+
+Process images one by one through face detection and face landmark detection. Then compute face descriptors through the Dlib's neural network. Note this step may take a while depending on your system.
 
 ```
-# To store landmark points
-points = []
-# For this simple application,
-# I choose the first detected face for landmark detection. 
-# Multiple detected faces situation isn't considered.
-if len(faceRects) > 0:
-    newRect = dlib.rectangle(int(faceRects[0].left()),
-                             int(faceRects[0].top()),
-                             int(faceRects[0].right()),
-                             int(faceRects[0].bottom()))
-    # Detect landmarks
-    landmarks = landmarkDetector(imDlib, newRect)
-
-    # Convert Dlib shape detector object to list of tuples and store them.
-    for p in landmarks.parts():
-        pt = (p.x, p.y)
-        points.append(pt)
-else:
-    print('No face detected')
+# Store face descriptors in an ndarray (faceDescriptors)
+# and their corresponding subfolder names in a dictionary (index)
+index = {}
+i = 0
+faceDescriptors = None
+for imagePath in imagePaths:
+    # Read image and convert it to RGB as Dlib uses BGR as default format
+    im = cv2.imread(imagePath)
+    img = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
+    
+    # Detect faces in image
+    faces = faceDetector(img)
+    
+    # Process each face found
+    for k, face in enumerate(faces):
+        # Find facial landmarks for each detected face
+        shape = shapePredictor(img, face)
+        
+        # Compute face descriptor using neural network defined in Dlib.
+        # It is a 128D vector that describes the face in img identified by shape.
+        faceDescriptor = faceRecognizer.compute_face_descriptor(img, shape)
+        
+        # Convert face descriptor from Dlib's format to list, then a NumPy array
+        faceDescriptorList = [x for x in faceDescriptor]
+        faceDescriptorNdarray = np.asarray(faceDescriptorList, dtype=np.float64)
+        faceDescriptorNdarray = faceDescriptorNdarray[np.newaxis, :]
+        
+        # Stack face descriptors (1x128) for each face in images, as rows
+        if faceDescriptors is None:
+            faceDescriptors = faceDescriptorNdarray
+        else:
+            faceDescriptors = np.concatenate((faceDescriptors, faceDescriptorNdarray), axis=0)
+        
+        # Save subfolder names containing this face image in index. We will use it later to identify
+        # person name corresponding to face descriptors stored in NumPy Array
+        index[i] = nameLabelMap[imagePath]
+        i += 1
 ```
 
-The image below shows the detected 68 landmarks and their corresponding indices.
+The dictionary **index** looks like this:
 
-![](/data/images/face_with_landmarks.jpg)
+{0: 'n00001021', 
+ 1: 'n00001021', 
+ 2: 'n00001021', 
+ .
+ .
+ .
+}
 
-I use the following equation to find the approximate locations of the left and right earlobe centres. This is just a rough calculation for this simple application, you can develop more accurate algorithms.
+Now we can use minimum distance rule to find the closest celeb in the celeb dataset to a given person's image. We use images of Sofia Solares and Shashikant Pedwal as examples.
 
-- Left: (x coordinate of landmark point 0, y coordinate of the middle point between point 2 and 3)
-- Right: (x coordinate of landmark point 16, y coordinate of the middle point between point 13 and 14)
-
-```
-leftLobeCentre = (points[0][0], int(points[2][1]+(points[3][1]-points[2][1])/2))
-rightLobeCentre = (points[16][0], int(points[13][1]+(points[14][1]-points[13][1])/2))
-```
-
-Now read the left and right earring images. Note they are PNG images which contain R, G, B channels, as well as a 4th channel which is a transparent alpha mask. 
+The example images processing steps, including face detection, face landmark detection, and face descriptor computation, are the same as the previous enrollment so not repeated here. But note there's only one output faceDescriptorNdarray instead of a stacked array for each example image, because we only consider the situation of single face per image.
 
 ```
-# Read the left earring image with alpha channel
-lEaringIm = cv2.imread("left_earring.png", -1)
-# Split png left earring image
-bl,gl,rl,al = cv2.split(lEaringIm)
-# Merge and convert RGB channels into an RGB image
-lEaringIm = cv2.merge((bl,gl,rl))
-lEaringIm = cv2.cvtColor(lEaringIm, cv2.COLOR_BGR2RGB)
-# Save the alpha information into a single mask image
-lAlpha = cv2.merge((al,al,al))
-
-# Repeat the previous steps for the right earring PNG image
-rEaringIm = cv2.imread("right_earring.png", -1)
-br,gr,rr,ar = cv2.split(rEaringIm)
-rEaringIm = cv2.merge((br,gr,rr))
-rEaringIm = cv2.cvtColor(rEaringIm, cv2.COLOR_BGR2RGB)
-rAlpha = cv2.merge((ar,ar,ar))
-```
-
-The earring images and their alpha masks:
-
-![](/data/images/left_earring.png)  ![](/data/images/left_earring_alpha.jpg) ![](/data/images/right_earring.png)  ![](/data/images/right_earring_alpha.jpg)    
-
-Resize the earring image height to 0.8 * height difference between landmark point 2 and 4. Then resize the earring width using the same scale. Note: This scale is based on best fitting results for the current earring images. You may use a different scale for your own earring images.
-
-```
-h = int((points[4][1] - points[2][1])*0.8)
-w = int(lEaringIm.shape[1]*h/lEaringIm.shape[0])
-lEaringImResized = cv2.resize(lEaringIm, (w, h))
-rEaringImResized = cv2.resize(rEaringIm, (w, h))
-
-lAlphaResized = cv2.resize(lAlpha, (w, h))
-rAlphaResized = cv2.resize(rAlpha, (w, h))
-```
-
-Find two rectangle regions of the exact size as the scaled earring images on the face image. The previously calculated earlobe centres are used as the top middle points of the regions.
-
-```
-# Make a copy of the original image
-imEarrings = imDlib.copy()
-
-lReg = imEarrings[points[2][1]:points[2][1]+h, int(points[0][0]-w/2):int(points[0][0]-w/2)+w]
-rReg = imEarrings[points[14][1]:points[14][1]+h, int(points[16][0]-w/2):int(points[16][0]-w/2)+w]
-```
-
-Perform alpha blending for the left and right earring regions. For more detailed information about Alpha Blending, go to https://www.learnopencv.com/alpha-blending-using-opencv-cpp-python/.
-
-```
-# Convert uint8 to float and then normalize the alpha mask to keep intensity between 0 and 1
-lEaringImResized = lEaringImResized.astype(float)
-lReg = lReg.astype(float)
-lAlphaResized = lAlphaResized.astype(float)/255
-
-rEaringImResized = rEaringImResized.astype(float)
-rReg = rReg.astype(float)
-rAlphaResized = rAlphaResized.astype(float)/255
-
-# Perform alpha blending
-lForeground = cv2.multiply(lAlphaResized, lEaringImResized)
-lBackground = cv2.multiply(1.0 - lAlphaResized, lReg)
-lOutImage = cv2.add(lForeground, lBackground)
-
-rForeground = cv2.multiply(rAlphaResized, rEaringImResized)
-rBackground = cv2.multiply(1.0 - rAlphaResized, rReg)
-rOutImage = cv2.add(rForeground, rBackground)
-```
-
-Final step is to replace the earring regions in the original image with the alpha blended images.
-
-```
-imEarrings[points[2][1]:points[2][1]+h, int(points[0][0]-w/2):int(points[0][0]-w/2)+w] = lOutImage
-imEarrings[points[14][1]:points[14][1]+h, int(points[16][0]-w/2):int(points[16][0]-w/2)+w] = rOutImage
+... # Same code as previous enrollment steps except for reading example images
+faceDescriptorNdarray = faceDescriptorNdarray[np.newaxis, :] # faceDescriptorNdarray here is for the example image
+        
+# Calculate Euclidean distances between face descriptor calculated on face dectected
+# in the example image with all the face descriptors we calculated while enrolling faces
+faceDescriptorsEnrolled = faceDescriptors
+distances = np.linalg.norm(faceDescriptorsEnrolled - faceDescriptorNdarray, axis=1)
+        
+# Calculate minimum distance and index of this face
+argmin = np.argmin(distances)  # index
+minDistance = distances[argmin]  # minimum distance
+        
+# Find the full path of the image in nameLabelMap
+imagePath = list(nameLabelMap.keys())[list(nameLabelMap.values()).index(index[argmin])]  
+    
+# The face with the minimum distance is the celeb look-alike face
+# Find the name of person from dictionary labelMap based on index 
+celeb_name = labelMap[index[argmin]]
 ```
 
 ## Final Results
 
-![](/data/images/face_with_earrings.jpg)
+![](/data/images/left_earring.png)  ![](/data/images/left_earring_alpha.jpg) ![](/data/images/right_earring.png)  ![](/data/images/right_earring_alpha.jpg)    
