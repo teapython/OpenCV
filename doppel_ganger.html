@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+
+<!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>DoppelGanger - Find Celebrity Look-Alike | OpenCV</title>
+<meta name="generator" content="Jekyll v3.8.7" />
+<meta property="og:title" content="DoppelGanger - Find Celebrity Look-Alike" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://teapython.github.io/OpenCV/" />
+<meta property="og:url" content="https://teapython.github.io/OpenCV/" />
+<meta property="og:site_name" content="OpenCV" />
+<script type="application/ld+json">
+{"@type":"WebSite","headline":"DoppelGanger - Find Celebrity Look-Alike","url":"https://teapython.github.io/OpenCV/","name":"OpenCV","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#157878">
+    <link rel="stylesheet" href="/OpenCV/assets/css/style.css?v=2c6c5a148d032573f5b789cce5a98fe1cd8f9691">
+  </head>
+  <body>
+    <section class="page-header">
+      <h1 class="project-name">OpenCV</h1>
+      <h2 class="project-tagline"></h2>
+      
+        <a href="https://github.com/teapython/OpenCV" class="btn">View on GitHub</a>
+      
+      
+    </section>
+
+    <section class="main-content">
+      <h1 id="doppelganger---find-celebrity-look-alike">DoppelGanger - Find Celebrity Look-Alike</h1>
+
+<p>This is a demonstration of using deep learning based face recognition to find a doppelganger or look-alike celebrity to a given person, also one of my projects for the OpenCV course: <strong>Computer Vision II</strong>.</p>
+
+<h2 id="the-core-idea">The Core Idea</h2>
+
+<ul>
+  <li>Enrollment of celebrity images in Dlib’s pre-trained Face Recognizer neural network
+    <ul>
+      <li>Process each celebrity image to detect faces and face landmarks</li>
+      <li>Compute face descriptor for each image</li>
+    </ul>
+  </li>
+  <li>Process a given person’ image in the same way to compute face descriptor</li>
+  <li>Calculate Euclidean distance between face descriptor of the person versus face descriptors of celebrity images. Find the celebrity face for which distance is minimum as the look-alike face</li>
+</ul>
+
+<h2 id="code">Code</h2>
+
+<p>Import libraries and set up image display parameters.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>import cv2, dlib
+import numpy as np
+import matplotlib.pyplot as plt
+%matplotlib inline
+</code></pre></div></div>
+
+<p>Initialize Dlib’s Face Detector, Facial Landmark Detector and Face Recognition neural network objects. 
+All the models can be found through this <a href="http://blog.dlib.net/2017/02/high-quality-face-recognition-with-deep.html">blog post</a> of Davis King, the author of Dlib.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>faceDetector = dlib.get_frontal_face_detector()
+shapePredictor = dlib.shape_predictor('shape_predictor_68_face_landmarks.dat')
+faceRecognizer = dlib.face_recognition_model_v1('dlib_face_recognition_resnet_model_v1.dat')
+</code></pre></div></div>
+
+<p>A mini celebrity dataset from OpenCV is used for this project. It’s ~400MB in size, including 5 images per person for ~1100 celebs. You can use any other large datasets if you have enough computation resources.</p>
+
+<p>The <strong>celeb_mini</strong> dataset folder has the following structure:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>celeb_mini
+└───n00000001
+│   └──n00000001_00000263.JPEG
+│   └──n00000001_00000405.JPEG
+│      ...
+└───n00000003
+│   └──n00000003_00000386.JPEG
+│   └──n00000003_00000488.JPEG
+│       ...
+│
+</code></pre></div></div>
+
+<p>A dictionary <strong>labelMap</strong> contains the mapping between the subfolder names and the celebrity’s actual name as show below:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{'n00000001': 'A.J. Buckley',
+ 'n00000002': 'A.R. Rahman',
+ 'n00000003': 'Aamir Khan',
+ 'n00000004': 'Aaron Staton',
+ 'n00000005': 'Aaron Tveit',
+ 'n00000006': 'Aaron Yoo',
+ 'n00000007': 'Abbie Cornish',
+ .
+ .
+ .
+}
+</code></pre></div></div>
+
+<p>Now prepare the dataset images for enrollment in the Dlib’s neural network.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code># imagePaths is a list of full paths for all celeb images  
+# nameLabelMap is a dictionary with keys as image file full paths
+# and values as subfolder names containing these images for a celebrity
+
+nameLabelMap = {}
+imagePaths = []
+
+subfolders = os.listdir(faceDatasetFolder)
+
+for subfolder in subfolders:
+    xpath = os.path.join(faceDatasetFolder, subfolder)
+    if os.path.isdir(xpath):
+        for x in os.listdir(xpath):
+            fullPath = os.path.join(xpath, x)
+            # Change 'JPEG' to the real format of your images
+            if x.endswith('JPEG'):
+                imagePaths.append(fullPath)
+                nameLabelMap[fullPath] = subfolder.split('/')[-1]
+</code></pre></div></div>
+
+<p>The dictionary <strong>nameLabelMap</strong> looks like this:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{'celeb_mini/n00001021/n00001021_00000223.JPEG': 'n00001021', 
+ 'celeb_mini/n00001021/n00001021_00000242.JPEG': 'n00001021',
+ .
+ .
+ .
+}
+</code></pre></div></div>
+
+<p>Process images one by one through face detection and face landmark detection. Then compute face descriptors through the Dlib’s neural network. Note this step may take a while depending on your system.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code># Store face descriptors in an ndarray (faceDescriptors)
+# and their corresponding subfolder names in a dictionary (index)
+index = {}
+i = 0
+faceDescriptors = None
+for imagePath in imagePaths:
+    # Read image and convert it to RGB as Dlib uses BGR as default format
+    im = cv2.imread(imagePath)
+    img = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
+    
+    # Detect faces in image
+    faces = faceDetector(img)
+    
+    # Process each face found
+    for k, face in enumerate(faces):
+        # Find facial landmarks for each detected face
+        shape = shapePredictor(img, face)
+        
+        # Compute face descriptor using neural network defined in Dlib.
+        # It is a 128D vector that describes the face in img identified by shape.
+        faceDescriptor = faceRecognizer.compute_face_descriptor(img, shape)
+        
+        # Convert face descriptor from Dlib's format to list, then a NumPy array
+        faceDescriptorList = [x for x in faceDescriptor]
+        faceDescriptorNdarray = np.asarray(faceDescriptorList, dtype=np.float64)
+        faceDescriptorNdarray = faceDescriptorNdarray[np.newaxis, :]
+        
+        # Stack face descriptors (1x128) for each face in images, as rows
+        if faceDescriptors is None:
+            faceDescriptors = faceDescriptorNdarray
+        else:
+            faceDescriptors = np.concatenate((faceDescriptors, faceDescriptorNdarray), axis=0)
+        
+        # Save subfolder names containing this face image in index
+        # Later it will be used to identify person name corresponding to face descriptors
+        index[i] = nameLabelMap[imagePath]
+        i += 1
+</code></pre></div></div>
+
+<p>The dictionary <strong>index</strong> looks like this:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{0: 'n00001021', 
+ 1: 'n00001021', 
+ 2: 'n00001021', 
+ .
+ .
+ .
+}
+</code></pre></div></div>
+
+<p>Now we can use minimum distance rule to find the closest celeb in the celeb dataset to a given person’s image. We use images of <strong>Sofia Solares</strong> and <strong>Shashikant Pedwal</strong> as examples.</p>
+
+<p  align="center"><img src="/OpenCV/data/images/sofia-solares.jpg" alt="" width="400" />  <img src="/OpenCV/data/images/shashikant-pedwal.jpg" alt="" width="400" /></p>
+
+<p>The example images processing steps, including face detection, face landmark detection, and face descriptor computation, are the same as the previous enrollment so not repeated here. But note there’s only one output <strong>faceDescriptorNdarray</strong> instead of a stacked array for each example image, because we only consider the situation of single face per image.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code># Same code as previous enrollment steps except for reading example images
+... 
+# faceDescriptorNdarray here is for the example image
+faceDescriptorNdarray = faceDescriptorNdarray[np.newaxis, :] 
+        
+# Calculate Euclidean distances between face descriptor calculated on face dectected
+# in the example image with all the face descriptors we calculated while enrolling faces
+faceDescriptorsEnrolled = faceDescriptors
+distances = np.linalg.norm(faceDescriptorsEnrolled - faceDescriptorNdarray, axis=1)
+        
+# Calculate minimum distance and index of this face
+argmin = np.argmin(distances)  # index
+minDistance = distances[argmin]  # minimum distance
+
+# The face with the minimum distance is the celeb look-alike face
+# Find the full path of the image in nameLabelMap
+imagePath = list(nameLabelMap.keys())[list(nameLabelMap.values()).index(index[argmin])]  
+# Find the name of person from dictionary labelMap based on index 
+celeb_name = labelMap[index[argmin]]
+</code></pre></div></div>
+
+<h2 id="final-results">Final Results</h2>
+
+<p  align="center"><img src="/OpenCV/data/images/sofia-solares.jpg" alt="" width="400" />  <img src="/OpenCV/data/images/alike1.JPEG" alt="" width="400" /></p>
+<p  align="center"><img src="/OpenCV/data/images/shashikant-pedwal.jpg" alt="" width="400" />  <img src="/OpenCV/data/images/alike2.JPEG" alt="" width="400" /></p>
+
+      <footer class="site-footer">
+        
+          <span class="site-footer-owner"><a href="https://github.com/teapython/OpenCV">OpenCV</a> is maintained by <a href="https://github.com/teapython">teapython</a>.</span>
+        
+        <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a>.</span>
+      </footer>
+    </section>
+
+    
+  </body>
+</html>
